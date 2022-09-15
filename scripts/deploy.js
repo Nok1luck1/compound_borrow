@@ -11,9 +11,9 @@ async function main() {
   console.log(`Deployer address: ${deployer.address}`)
 
   const borrow = await hre.ethers.getContractFactory("Compound_borrow");
-  const Borrow = await borrow.deploy();
+  const Borrow = await borrow.deploy("0x20572e4c090f15667cF7378e16FaD2eA0e2f3EfF");
   await Borrow.deployed();
-  await Borrow.addCtokenReplesentedByToken("0xe4E81Fa6B16327D4B78CFEB83AAdE04bA7075165","0xA253295eC2157B8b69C44b2cb35360016DAa25b1");
+  await Borrow.createAssetForCtoken("0xe4E81Fa6B16327D4B78CFEB83AAdE04bA7075165","0xA253295eC2157B8b69C44b2cb35360016DAa25b1");
   console.log(`deployed to: ${Borrow.address}`)
 }
 

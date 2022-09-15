@@ -29,6 +29,7 @@ interface CErc20 {
 }
 
 interface CEth {
+  function approve(address spender, uint amount)  external returns (bool);//
   function balanceOf(address) external view returns (uint);
   function mint() external payable;
   function exchangeRateCurrent() external returns (uint);
