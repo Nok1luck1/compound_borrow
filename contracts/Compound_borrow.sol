@@ -6,76 +6,69 @@ import "hardhat/console.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./interfaces/Comptroller.sol";
+import "./interfaces/ComptrollerInterfaces.sol";
 
 
 contract Compound_borrow is AccessControl{
     using SafeERC20 for IERC20;
-    CErc20 public cToken;
+    ICErc20 public cToken;
     CEth public cTokenETH; 
-    Comptroller public comptroller = Comptroller(0x627EA49279FD0dE89186A58b8758aD02B6Be2867);
-    PriceFeed public priceFeed = PriceFeed(0xd0c84453b3945cd7e84BF7fc53BfFd6718913B71);
-    event CTokenInfo(uint exchangeRateMantissa,uint supplyRateMantisssa,address ctoken);
-    event CETHInfo(uint exchangeRateMantissa,uint supplyRateMantisssa);
+    ComptrollerInterfaces public comptroller ;
+    PriceFeed public priceFeed ;
+    
+
     mapping(address=>mapping(address=>uint)) public usertokensSuppliedToCompound;
     mapping(address=>mapping(address=>uint)) public userBorrowedFromCompound;
 
+    event CTokenInfo(uint exchangeRateMantissa,uint supplyRateMantisssa,address ctoken);
+    event CETHInfo(uint exchangeRateMantissa,uint supplyRateMantisssa);
     
-
     mapping (address=> address)public tokenForCtoken;
 
     receive()external payable{
 
     }
-    constructor(CEth cTokenETh){
+    constructor(CEth cTokenETh, ComptrollerInterfaces comprtoller,PriceFeed oracle){
         cTokenETH = cTokenETh;
+        comptroller = comprtoller;
+        priceFeed = oracle;
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
-
     function createAssetForCtoken(address _token,address _cToken)public onlyRole(DEFAULT_ADMIN_ROLE){
         tokenForCtoken[_token] = _cToken;
     }
 
+    
+
     function supplyERC20ToCompound(address _token,uint _numTokenForSupply) external returns(uint,uint,uint){
+
         address _ctoken = tokenForCtoken[_token];
         usertokensSuppliedToCompound[msg.sender][_ctoken] = _numTokenForSupply;
-        //require(CErc20(_ctoken).underlying() = _token,"wrong Ctoken asset from _token");
-        //начисляем проценты и возвращает актуальный обменный курс
-        uint exchangeRateMantissa = CErc20(_ctoken).exchangeRateCurrent();
-        //возвращаем текущую процентную ставку за блок для этого токена
-        uint supplyRatemantissa = CErc20(_ctoken).supplyRatePerBlock();
-        // разрещаем потратить пользователю количетсов токенов чтобы получить ликвидные стокены
+        uint exchangeRateMantissa = ICErc20(_ctoken).exchangeRateCurrent();
+        uint supplyRatemantissa = ICErc20(_ctoken).supplyRatePerBlock();
+        IERC20(_token).transfer(address(this), _numTokenForSupply);
         IERC20(_token).approve(_ctoken, _numTokenForSupply);
-        uint mintResult = CErc20(_ctoken).mint(_numTokenForSupply);
-        //выводим нынешние данные по токену
+        uint mintResult = ICErc20(_ctoken).mint(_numTokenForSupply);
         emit CTokenInfo(exchangeRateMantissa,supplyRatemantissa,_ctoken);
         return (exchangeRateMantissa,supplyRatemantissa,mintResult);      
     }
+
     function calculateRedeemAmountERC20(address _ctoken,address _user)public view returns(uint){
-        uint balance = CErc20(_ctoken).balanceOf(_user);
+        uint balance = ICErc20(_ctoken).balanceOf(_user);
         return balance;
     }
     function redeemERC20FromCompound(uint amount,bool reddemType,address _cToken)public returns(uint){
         uint redeedmReslt;
-        uint suppliedBalance = usertokensSuppliedToCompound[msg.sender][_cToken];
+        //uint suppliedBalance = usertokensSuppliedToCompound[msg.sender][_cToken];
         if (reddemType == true){
-            redeedmReslt = CErc20(_cToken).redeem(amount);
+            redeedmReslt = ICErc20(_cToken).redeem(amount);
         } else {
-            redeedmReslt = CErc20(_cToken).redeemUnderlying(amount);
+            redeedmReslt = ICErc20(_cToken).redeemUnderlying(amount);
         }
-        usertokensSuppliedToCompound[msg.sender][_cToken] = suppliedBalance;
-        // = calculateRedeemAmountERC20(_cToken, address(this));//error
-        suppliedBalance = suppliedBalance - amount;
-        return suppliedBalance;
+
+        return 1;
     }
-    function ExchangeRate(address _token,uint decimalsToken,uint _amount)public returns(uint){
-        address _cToken = tokenForCtoken[_token];
-        uint oneCtokenInunderlying = CErc20(_cToken).exchangeRateCurrent()/(1*10^(18 + decimalsToken - 8));
-        return _amount*oneCtokenInunderlying;
-    }
-    function getCTokenprice(address _cToken)public view returns(uint){
-        return priceFeed.getUnderlyingPrice(_cToken);
-    }
+   
 
     function borrowERCFromCompoundForERC(address tokenForLiquidityCalc,uint amountOfCollateral,uint _decimals)public returns (uint){
         address _cTokenBorrowed = tokenForCtoken[tokenForLiquidityCalc];
@@ -93,18 +86,18 @@ contract Compound_borrow is AccessControl{
         require(underlingPriceUsd > liquidity,"");
         uint maxBorrow = (liquidity * (10** _decimals)) / underlingPriceUsd;
         require(maxBorrow > 0, "max borrow = 0");
-        require(CErc20(_cTokenBorrowed).totalSupply() <= amountOfCollateral);
-        require(CErc20(_cTokenBorrowed).borrow(maxBorrow) == 0, "borrow failed");
-        uint borrows = CErc20(_cTokenBorrowed).borrowBalanceCurrent(msg.sender);
+        require(ICErc20(_cTokenBorrowed).totalSupply() <= amountOfCollateral);
+        require(ICErc20(_cTokenBorrowed).borrow(maxBorrow) == 0, "borrow failed");
+        uint borrows = ICErc20(_cTokenBorrowed).borrowBalanceCurrent(msg.sender);
         return borrows;
     }
     function repayERCBorrow(address repayUserBalance,uint amountOfCollateral,address _cTokenBorrowed) public returns(uint){
-        CErc20(_cTokenBorrowed).repayBorrow(amountOfCollateral);
-        uint borrows = CErc20(_cTokenBorrowed).borrowBalanceCurrent(repayUserBalance);
+        ICErc20(_cTokenBorrowed).repayBorrow(amountOfCollateral);
+        uint borrows = ICErc20(_cTokenBorrowed).borrowBalanceCurrent(repayUserBalance);
         return borrows; 
     }
     function getBorrowAmount(address user,address _cTokenBorrowed)public view returns(uint){
-        uint borrows = CErc20(_cTokenBorrowed).borrowBalanceStored(user);
+        uint borrows = ICErc20(_cTokenBorrowed).borrowBalanceStored(user);
         return borrows;
     }
     
@@ -148,6 +141,15 @@ contract Compound_borrow is AccessControl{
     }
     function repayETH(uint _amount)payable public {
         CEth(cTokenETH).repayBorrow{ value:_amount, gas:25000}();
+    }
+///////////////////////////////////////////////
+    function ExchangeRate(address _token,uint decimalsToken,uint _amount)public returns(uint){
+        address _cToken = tokenForCtoken[_token];
+        uint oneCtokenInunderlying = ICErc20(_cToken).exchangeRateCurrent()/(1*10^(18 + decimalsToken - 8));
+        return _amount*oneCtokenInunderlying;
+    }
+    function getCTokenprice(address _cToken)public view returns(uint){
+        return priceFeed.getUnderlyingPrice(_cToken);
     }
 
 }

@@ -14,10 +14,8 @@ abstract contract ComptrollerInterface {
 
     function mintAllowed(address cToken, address minter, uint mintAmount) virtual external returns (uint);
     function mintVerify(address cToken, address minter, uint mintAmount, uint mintTokens) virtual external;
-
     function redeemAllowed(address cToken, address redeemer, uint redeemTokens) virtual external returns (uint);
     function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) virtual external;
-
     function borrowAllowed(address cToken, address borrower, uint borrowAmount) virtual external returns (uint);
     function borrowVerify(address cToken, address borrower, uint borrowAmount) virtual external;
 

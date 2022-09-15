@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8;
 
-interface CErc20 {
+interface ICErc20 {
   function mint(uint) external returns (uint);//
   function redeem(uint) external returns (uint);//
   function redeemUnderlying(uint) external returns (uint);//
@@ -43,7 +43,7 @@ interface CEth {
   function repayBorrow() external payable;
 }
 
-interface Comptroller {
+interface ComptrollerInterfaces {
   function markets(address)
     external
     view

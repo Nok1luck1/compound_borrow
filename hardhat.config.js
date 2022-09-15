@@ -65,7 +65,7 @@ module.exports = {
     goerli:{
       url:'https://goerli.infura.io/v3/c0846c0936794c209285d51868f1ad77',
       chainId:5,
-      gasPrice: 200000000000,
+      gasPrice: 2000000000,
       accounts:[PRIVATE_KEY]
     },
     ropsten:{
