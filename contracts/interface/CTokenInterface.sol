@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.9;
+pragma solidity 0.8.10;
 import "./CErc20Storage.sol";
 import "../compound/EIP20NonStandardInterface.sol";
 

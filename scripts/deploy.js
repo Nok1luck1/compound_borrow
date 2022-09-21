@@ -12,10 +12,11 @@ const main = async () => {
         let retry = 20;
         console.log("Sleeping before verification...");
         while ((await ethers.provider.getCode(address).catch(() => "")).length <= 3 && retry >= 0) {
-            await sleep(50);
+            
+            
             --retry;
         }
-        //await sleep(30000);
+       
 
         console.log(address, args);
 
@@ -35,57 +36,67 @@ const main = async () => {
   
 
 
-  const Comtroller123 = await ethers.getContractFactory("Comptroller");
-  const Comptroller777 = await Comtroller123.deploy();
-  await Comptroller777.deployed();
+//   const Comtroller123 = await ethers.getContractFactory("Comptroller");
+//   const Comptroller777 = await Comtroller123.deploy();
+//   await Comptroller777.deployed();
 
-  await verify(Comptroller777.address);
-  console.log(Comptroller777.address);
+//   await verify(Comptroller777.address);
+//   console.log(Comptroller777.address);
 
   
-  const InterestRateModel = await ethers.getContractFactory("BaseJumpRateModelV2");
-  const InterestRate = await InterestRateModel.deploy("20000000000000000","180000000000000000","4000000000000000000","800000000000000000",deployer.address);
-  await InterestRate.deployed();
+//   const InterestRateModel = await ethers.getContractFactory("JumpRateModelV2");
+//   const InterestRate = await InterestRateModel.deploy("20000000000000000","180000000000000000","4000000000000000000","800000000000000000",deployer.address);
+//   await InterestRate.deployed(); 
+//   console.log("JUmpRateModelv2",InterestRate.address);
 
-  await verify(InterestRate.address);
-  console.log(InterestRate.address);
+    // const Timelock = await ethers.getContractFactory("Timelock");
+    // const timelock = await Timelock.deploy("0x3f4F5d9971c265a7485540207023EA4B68Af6dc6",172800);
+    // await timelock.deployed();
+    // console.log("timelock address",timelock.address);
 
-
-  const MyTokn = await ethers.getContractFactory("MyToken");
-  const Token = await MyTokn.deploy();
-  await Token.deployed();
-
-  await verify(Token.address);
-  console.log(Token.address);
 
 
  
-  const cToken = (await ethers.getContractFactory("CErc20")).connect(deployer);
-    const initValue = [
-        Token.address,
-        Comptroller777.address,
-        InterestRate.addresss,
-        "200000000000000000000000000",
-        "cPEDRIL",
-        "cPDR",
-        8
-    ];
-    const CTOKEN = await cToken.deploy();
+    // const CErc20Delegate = await ethers.getContractFactory("CErc20");
+    // const CErc20Delegate1 = await CErc20Delegate.deploy();
+    // await CErc20Delegate1.deployed();
+    // console.log("CERC20 delegate",CErc20Delegate1.address);
+
+
     
-    await verify(CTOKEN.address);
-    console.log(CTOKEN.address);
+    // const CErc20Delegator = await ethers.getContractFactory("CErc20Delegator");
+    // const CErc20Delegator1 = await CErc20Delegator.deploy("0x98D0De8E2FD4AA6901834BF9168bA1A937A7B5A4",
+    // "0x626E8e147a49a070E11e75cAF0950dE04Fcefa70",
+    // "0x9a7356a642941E55EaE8947D239D4D5bB537731d",
+    // "200000000000000000000000000", "cPEDRIL","cPDR",8,
+    // "0x3f4F5d9971c265a7485540207023EA4B68Af6dc6",
+    // CErc20Delegate1.address,"0x0000000000000000000000000000000000000000");
+
+    // await CErc20Delegator1.deployed();
+    // console.log(CErc20Delegator1.address);
 
 
 
     const borrow = await hre.ethers.getContractFactory("Compound_borrow");
-    const Borrow = await borrow.deploy("0x20572e4c090f15667cF7378e16FaD2eA0e2f3EfF",Comptroller777.address,InterestRate.address);
+    const Borrow = await borrow.deploy("0x20572e4c090f15667cF7378e16FaD2eA0e2f3EfF","0x3cBe63aAcF6A064D32072a630A3eab7545C54d78","0x65F19195e488B9C1A1Ac08ca115f197C992bC776");
     await Borrow.deployed();
-    await Borrow.createAssetForCtoken(Token.address,CTOKEN.address);
+    await Borrow.createAssetForCtoken("0x208f73527727bcb2d9ca9ba047e3979559eb08cc","0x2073d38198511F5Ed8d893AB43A03bFDEae0b1A5");
+
     console.log(`deployed to: ${Borrow.address}`)
-    await verify.Borrow;
+
+
+    //   const MyTokn = await ethers.getContractFactory("MyToken");
+//   const Token = await MyTokn.deploy();
+//   await Token.deployed();
+
+//   await verify(Token.address);
+//   console.log(Token.address);
+
+    // await verify(InterestRate.address);
+    // await verify(CTOKEN.address);
+    //await verify(Borrow.address);
 }
     
-///0xe4E81Fa6B16327D4B78CFEB83AAdE04bA7075165 token waht we will swap and deposit
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.10;
 
 abstract contract ComptrollerInterface {
     /// @notice Indicator that this is a Comptroller contract (for inspection)
@@ -14,8 +14,10 @@ abstract contract ComptrollerInterface {
 
     function mintAllowed(address cToken, address minter, uint mintAmount) virtual external returns (uint);
     function mintVerify(address cToken, address minter, uint mintAmount, uint mintTokens) virtual external;
+
     function redeemAllowed(address cToken, address redeemer, uint redeemTokens) virtual external returns (uint);
     function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) virtual external;
+
     function borrowAllowed(address cToken, address borrower, uint borrowAmount) virtual external returns (uint);
     function borrowVerify(address cToken, address borrower, uint borrowAmount) virtual external;
 

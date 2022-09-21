@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.10;
 
 import "./CTokenInterfaces.sol";
 
@@ -34,7 +34,7 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
                 bytes memory becomeImplementationData) {
         // Creator of the contract is admin during initialization
         admin = payable(msg.sender);
-
+    
         // First delegate gets to initialize the delegator (i.e. storage contract)
         delegateTo(implementation_, abi.encodeWithSignature("initialize(address,address,address,uint256,string,string,uint8)",
                                                             underlying_,
@@ -51,6 +51,7 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
         // Set the proper admin now that initialization is done
         admin = admin_;
     }
+    
 
     /**
      * @notice Called by the admin to update the implementation of the delegator

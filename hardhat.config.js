@@ -71,7 +71,7 @@ module.exports = {
     ropsten:{
       url:'https://ropsten.infura.io/v3/c0846c0936794c209285d51868f1ad77',
       chainId:3,
-      gasPrice: 1200000000,
+      gasPrice: 2000000000,
       accounts:[PRIVATE_KEY]
     },
     palmTest:{
@@ -151,7 +151,7 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.8.9",
+        version: "0.8.10",
         settings: {
           optimizer: {
             enabled: true,

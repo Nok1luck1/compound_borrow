@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.10;
 
 import "./ComptrollerInterface.sol";
 import "./CTokenInterfaces.sol";
@@ -482,7 +482,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /* exchangeRate = invoke Exchange Rate Stored() */
         Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal() });
-
+        
         uint redeemTokens;
         uint redeemAmount;
         /* If redeemTokensIn > 0: */
