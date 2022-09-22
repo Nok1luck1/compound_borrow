@@ -81,7 +81,7 @@ const main = async () => {
     const Borrow = await borrow.deploy("0x20572e4c090f15667cF7378e16FaD2eA0e2f3EfF","0x3cBe63aAcF6A064D32072a630A3eab7545C54d78","0x65F19195e488B9C1A1Ac08ca115f197C992bC776");
     await Borrow.deployed();
     await Borrow.createAssetForCtoken("0x208f73527727bcb2d9ca9ba047e3979559eb08cc","0x2073d38198511F5Ed8d893AB43A03bFDEae0b1A5");
-
+    await Borrow.createAssetForToken("0x2073d38198511F5Ed8d893AB43A03bFDEae0b1A5","0x208f73527727bcb2d9ca9ba047e3979559eb08cc");
     console.log(`deployed to: ${Borrow.address}`)
 
 

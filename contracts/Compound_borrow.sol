@@ -17,9 +17,9 @@ contract Compound_borrow is AccessControl{
     PriceFeed public priceFeed;
     
     struct User{
-        mapping(address=>uint) suppliedCTokens;//for c Token
-        mapping(address=>uint) borrowedCTokens;//borrowed from compound
-        mapping(address=>uint) tokenDeposited;// for Origin token
+        mapping(address=>uint) suppliedTokens;//for  Token
+        mapping(address=>uint) borrowedTokens;//borrowed from compound
+        mapping(address=>uint) tokenReceivedSupply;// for C token
     }
 
     mapping(address => User) userInfo;
@@ -36,163 +36,166 @@ contract Compound_borrow is AccessControl{
         priceFeed = oracle;
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
-    function getUserSuppliedToken(address _user,address _cToken)public view returns(uint){
+    function getUserSuppliedToken(address _user,address _Token)public view returns(uint){
         User storage user = userInfo[_user];
-        return user.suppliedCTokens[_cToken];
+        return user.suppliedTokens[_Token];
     }
     function getUserBorrowedToken(address _user,address borowedToken)public view returns(uint){
         User storage user = userInfo[_user];
-        return user.borrowedCTokens[borowedToken];
+        return user.borrowedTokens[borowedToken];
     }
-    function getUserDepositedToken(address _user,address depositToken)public view returns(uint){
+    function getUserReceivedToken(address _user,address receivedToken)public view returns(uint){
         User storage user = userInfo[_user];
-        return user.tokenDeposited[depositToken];
+        return user.tokenReceivedSupply[receivedToken];
+    }
+    function setUserSuppliedToken(address _user,address _token,uint amount)internal {
+        User storage user = userInfo[_user];
+        user.suppliedTokens[_token] = amount;
+    }
+    function setUserBorrowedToken(address _user,address _token,uint amount)internal {
+        User storage user = userInfo[_user];
+        user.borrowedTokens[_token] = amount;
+    }
+    function setUserReceivedToken(address _user,address _token,uint amount)internal {
+        User storage user = userInfo[_user];
+        user.tokenReceivedSupply[_token] = amount;
     }
     function createAssetForCtoken(address _token,address _cToken)public onlyRole(DEFAULT_ADMIN_ROLE){
         tokenForCtoken[_token] = _cToken;
     }
+    function createAssetForToken(address _cToken,address _token)public onlyRole(DEFAULT_ADMIN_ROLE){
+        cTOKENforToken[_cToken] = _token;
+    }
     function supplyERC20ToCompound(address _token,uint _numTokenForSupply) external returns(uint,uint,uint){
-        User storage user = userInfo[msg.sender];
+        // User storage user = userInfo[msg.sender];
         address _ctoken = tokenForCtoken[_token];
+        uint balanceUserBefore = getUserSuppliedToken(msg.sender, _token);
         IERC20(_token).transferFrom(msg.sender, address(this), _numTokenForSupply);
-        user.tokenDeposited[_token] = _numTokenForSupply;
+        uint totalBalanceUser = balanceUserBefore + _numTokenForSupply;
+        setUserSuppliedToken(msg.sender, _token, totalBalanceUser);
+        //////////////////////////////////////////////////////////
         uint exchangerRateStored = ICErc20(_ctoken).exchangeRateStored();
         uint exchangeRateMantissa = ICErc20(_ctoken).exchangeRateCurrent();
         uint supplyRatemantissa = ICErc20(_ctoken).supplyRatePerBlock();
+        //////////////////////////////////////////////////////////
+        uint balanceBefore = ICErc20(_ctoken).balanceOf(address(this));
         IERC20(_token).approve(_ctoken, _numTokenForSupply);
-        uint mintCTokens = _numTokenForSupply / exchangerRateStored;
         uint mintResult = ICErc20(_ctoken).mint(_numTokenForSupply);
-        user.suppliedCTokens[_token] = mintCTokens; 
         require(mintResult == 0 ,"Mint has failed");
+        uint balanceAfter = ICErc20(_ctoken).balanceOf(address(this));
+        uint tokenreceived = balanceAfter - balanceBefore;
+        setUserReceivedToken(msg.sender, _ctoken, tokenreceived);
         emit CTokenInfo(exchangeRateMantissa,supplyRatemantissa,_ctoken);
-        return (exchangeRateMantissa,supplyRatemantissa,mintResult);      
+        return (exchangeRateMantissa,supplyRatemantissa,exchangerRateStored);      
     }
 
-    function redeemERC20FromCompound(uint amountCTK,bool reddemType,address _cToken)public returns(uint){
-        User storage user = userInfo[msg.sender];
-        uint TokenSupplied = user.suppliedCTokens[_cToken];
-        //max value for suplpied asset
-        uint maxExchangeRedeemERC = ICErc20(_cToken).exchangeRateCurrent() * TokenSupplied;
-        require(TokenSupplied > 0,"Did not supply before using redeem");
-        uint balanceNow = TokenSupplied - amountCTK;
-        user.suppliedCTokens[_cToken] = balanceNow;
+    function redeemERC20FromCompound(uint amountcToken,bool reddemType,address _cToken)public returns(uint){
+        address tokenRec = cTOKENforToken[_cToken];
+        uint totalReceivedTokens = getUserReceivedToken(msg.sender, _cToken);
+        require(amountcToken<=totalReceivedTokens,"IDI NAHUY");
+        uint balanceTokenBefore = IERC20(tokenRec).balanceOf(address(this));
         uint redeedmReslt;
+        uint balBefore = ICErc20(_cToken).balanceOf(address(this));
         if (reddemType == true){
-            redeedmReslt = ICErc20(_cToken).redeem(amountCTK);
+            redeedmReslt = ICErc20(_cToken).redeem(amountcToken);
         } else {
-            redeedmReslt = ICErc20(_cToken).redeemUnderlying(amountCTK);
+            redeedmReslt = ICErc20(_cToken).redeemUnderlying(amountcToken);
         }
         require(redeedmReslt == 0,"Redeem c Token unsuccesfful");
-        address Token = cTOKENforToken[_cToken];
-        uint ExchangeRedeemERC = ICErc20(_cToken).exchangeRateCurrent() * amountCTK;
-        user.tokenDeposited[Token] = ExchangeRedeemERC;
-        return maxExchangeRedeemERC;
+        uint balanceTokenAfter = IERC20(tokenRec).balanceOf(address(this));
+        setUserSuppliedToken(msg.sender, tokenRec, (balanceTokenAfter - balanceTokenBefore));
+        uint balAfter = ICErc20(_cToken).balanceOf(address(this));
+        setUserReceivedToken(msg.sender, _cToken, (balBefore - balAfter));
+        uint ExchangeRedeemERC = ICErc20(_cToken).exchangeRateCurrent() * amountcToken;
+        return ExchangeRedeemERC;
     }
     ///need to calculate liquidity for amount what token user deposit to contract
-    function calculateMaxPriceForBorrow(address _user,address tokenC)public view returns(uint){
-        User storage user = userInfo[_user];
-        uint amountCTokens = user.suppliedCTokens[tokenC];
+    function calculateMaxPriceForBorrow(address _user,address _cToken)public view returns(uint,uint){
+        uint amountCToken = getUserReceivedToken(_user,_cToken);
         //get total price of Ctoken buy the deposited Origin token
-        uint PriceamountDeposited = (priceFeed.getUnderlyingPrice(tokenC) * amountCTokens)/1e18;
-        (,uint value,) = comptroller.markets(tokenC);
-        uint maxBorrowPrice = (value/1e18)*PriceamountDeposited;
-        return maxBorrowPrice;    
+        uint PriceamountDeposited = (priceFeed.getUnderlyingPrice(_cToken)/1*(10**18)) * amountCToken;//6030000000000000000 * amountCToken
+        (,uint value,) = comptroller.markets(_cToken);//750000000000000000
+        uint maxBorrowPrice = (value/(1*(10**18)))*PriceamountDeposited;//(6030000000000000000 * amountCToken)*750000000000000000
+        uint currentBorrowactual = (maxBorrowPrice/5)*4;
+        return (maxBorrowPrice,currentBorrowactual);    
     }
    
+        //string memory tokenBorrow in mainnet
+    function borrowERCFromCompoundForERC(address _cToken,address tokenBorrow,uint amountOfBorrow)public returns (uint,uint){
+        address BorrowCToken = tokenForCtoken[tokenBorrow];
+        (uint maxBoro,uint ActualLimit) = calculateMaxPriceForBorrow(msg.sender, _cToken);
+        uint priceTokenBrr = priceFeed.assetPrices(tokenBorrow);
+        uint amountOfTokenBor = (ActualLimit / priceTokenBrr);
+        require(ICErc20(BorrowCToken).borrow(amountOfBorrow)==0,"Ne rabotaet nihuya");
+        setUserBorrowedToken(msg.sender, BorrowCToken, amountOfTokenBor);
+        return (maxBoro,ActualLimit);
+    }
 
-    // function borrowERCFromCompoundForERC(address tokenForLiquidityCalc,uint amountOfCollateral,uint _decimals)public returns (uint){
-    //     User storage user = userInfo[msg.sender];
-    //     address _cTokenBorrowed = tokenForCtoken[tokenForLiquidityCalc];
-    //     //require(usertokensSuppliedToCompound[msg.sender][_cTokenBorrowed] > 0,"Did not supply before using redeem");
-    //     address[] memory _cTokens = new address[](1);
-    //     _cTokens[0] = _cTokenBorrowed;
-    //     uint deposited = user.tokenDeposited[tokenForLiquidityCalc];
-    //     uint liquidity = 
-        
-    //     uint underlingPriceUsd = getCTokenprice(_cTokenBorrowed);
-    //     require(underlingPriceUsd > liquidity,"");
-    //     uint maxBorrow = (liquidity * (10** _decimals)) / underlingPriceUsd;
-    //     require(maxBorrow > 0 ,"max borrow = 0");
-    //     require(ICErc20(_cTokenBorrowed).totalSupply() <= amountOfCollateral);
-    //     require(ICErc20(_cTokenBorrowed).borrow(maxBorrow) == 0, "borrow failed");
-    //     uint borrows = ICErc20(_cTokenBorrowed).borrowBalanceCurrent(msg.sender);
-    //     user.borrowedCTokens[_cTokenBorrowed];
-    //     return borrows;
-    // }
     function repayERCBorrow(address repayUserBalance,uint amountOfBorrow,address _cTokenBorrowed) public returns(uint){
         ICErc20(_cTokenBorrowed).repayBorrow(amountOfBorrow);
         uint borrows = ICErc20(_cTokenBorrowed).borrowBalanceCurrent(repayUserBalance);
         return borrows; 
     }
-    function enterToMarket(address _cToken)public {
+    function enterToMarket(address _cToken)public onlyRole(DEFAULT_ADMIN_ROLE){
         address[] memory _cTokens = new address[](1);
         _cTokens[0] = _cToken;
         uint[] memory errors1 = comptroller.enterMarkets(_cTokens);
         require(errors1[0] == 0,"Failed to enter market");
-        (uint error2,uint liquidity,uint shortfall) = comptroller.getAccountLiquidity(address(this));
-        require(error2 == 0,"Failed to get liquidity");
-        require(shortfall == 0, "Account underwater");
-        require(liquidity > 0, "Empty liquidity in account");//error
     }
     // function exitMarketWithToken(address token)public {
     //     User storage user = userInfo[msg.sender];
     //     require(user.tokenDeposited[token]>0);
     //     comptroller.exitMarkets[]
-    // }
-    function getBorrowAmount(address _user,address _cTokenBorrowed)public view returns(uint){
-        User storage user = userInfo[_user];
-        return user.borrowedCTokens[_cTokenBorrowed];
-    }
-    
+    // }    
 
     ///////////////////////////////////////////////////////////////////////////
-     function supplyETHtoCompound()public payable returns(bool){
-        uint exchangeRateMantissa = CEth(cTokenETH).exchangeRateCurrent();
-        uint supplyRatemantissa = CEth(cTokenETH).supplyRatePerBlock();
-        CEth(cTokenETH).mint{value: msg.value, gas: 250000};
-        emit CETHInfo(exchangeRateMantissa,supplyRatemantissa);
-        return true;       
-    }
-    function borrowTokenForETH(address _cTokenBorrowing)external payable returns(uint){
-        CEth(cTokenETH).mint{value:msg.value,gas:25000}();
-        address[] memory _cTokens = new address[](1);
-        _cTokens[0] = _cTokenBorrowing;
-        uint[] memory errors1 = comptroller.enterMarkets(_cTokens);
-        require(errors1[0] == 0,"Failed to enter market");
-        (uint error2,uint liquidity,uint shortfall) = comptroller.getAccountLiquidity(address(this));
-        require(error2 == 0,"Failed to get liquidity");
-        require(shortfall == 0, "account underwater");
-        require(liquidity > 0, "account has excess collateral");
-        uint256 underlyingPrice = priceFeed.getUnderlyingPrice(_cTokenBorrowing);
-        uint256 maxBorrowUnderlying = liquidity / underlyingPrice;
-        cToken.borrow(maxBorrowUnderlying);
-        uint256 borrows = cToken.borrowBalanceCurrent(address(this));
-        return borrows;    
-    }
-    function calculateRedeemAmountETH(address _user)public view returns(uint){
-        uint balance = CEth(cTokenETH).balanceOf(_user);
-        return balance * 1e8;
-    }
-    function redeemCETH(uint amount,bool redeemType) public returns(uint){
-        uint redeemResult;
-        if (redeemType == true) {
-            redeemResult = CEth(cTokenETH).redeem(amount);
-        } else {
-            redeemResult = CEth(cTokenETH).redeemUnderlying(amount);
-        }
-        return calculateRedeemAmountETH(msg.sender);
-    }
-    function repayETH(uint _amount)payable public {
-        CEth(cTokenETH).repayBorrow{ value:_amount, gas:25000}();
-    }
-///////////////////////////////////////////////
-    function ExchangeRate(address _token,uint decimalsToken,uint _amount)public returns(uint){
-        address _cToken = tokenForCtoken[_token];
-        uint oneCtokenInunderlying = ICErc20(_cToken).exchangeRateCurrent()/(1*10^(18 + decimalsToken - 8));
-        return _amount*oneCtokenInunderlying;
-    }
-    function getCTokenprice(address _cToken)public view returns(uint){
-        return priceFeed.getUnderlyingPrice(_cToken);
-    }
+//      function supplyETHtoCompound()public payable returns(bool){
+//         uint exchangeRateMantissa = CEth(cTokenETH).exchangeRateCurrent();
+//         uint supplyRatemantissa = CEth(cTokenETH).supplyRatePerBlock();
+//         CEth(cTokenETH).mint{value: msg.value, gas: 250000};
+//         emit CETHInfo(exchangeRateMantissa,supplyRatemantissa);
+//         return true;       
+//     }
+//     function borrowTokenForETH(address _cTokenBorrowing)external payable returns(uint){
+//         CEth(cTokenETH).mint{value:msg.value,gas:25000}();
+//         address[] memory _cTokens = new address[](1);
+//         _cTokens[0] = _cTokenBorrowing;
+//         uint[] memory errors1 = comptroller.enterMarkets(_cTokens);
+//         require(errors1[0] == 0,"Failed to enter market");
+//         (uint error2,uint liquidity,uint shortfall) = comptroller.getAccountLiquidity(address(this));
+//         require(error2 == 0,"Failed to get liquidity");
+//         require(shortfall == 0, "account underwater");
+//         require(liquidity > 0, "account has excess collateral");
+//         uint256 underlyingPrice = priceFeed.getUnderlyingPrice(_cTokenBorrowing);
+//         uint256 maxBorrowUnderlying = liquidity / underlyingPrice;
+//         cToken.borrow(maxBorrowUnderlying);
+//         uint256 borrows = cToken.borrowBalanceCurrent(address(this));
+//         return borrows;    
+//     }
+//     function calculateRedeemAmountETH(address _user)public view returns(uint){
+//         uint balance = CEth(cTokenETH).balanceOf(_user);
+//         return balance * 1e8;
+//     }
+//     function redeemCETH(uint amount,bool redeemType) public returns(uint){
+//         uint redeemResult;
+//         if (redeemType == true) {
+//             redeemResult = CEth(cTokenETH).redeem(amount);
+//         } else {
+//             redeemResult = CEth(cTokenETH).redeemUnderlying(amount);
+//         }
+//         return calculateRedeemAmountETH(msg.sender);
+//     }
+//     function repayETH(uint _amount)payable public {
+//         CEth(cTokenETH).repayBorrow{ value:_amount, gas:25000}();
+//     }
+// ///////////////////////////////////////////////
+//     function ExchangeRate(address _token,uint decimalsToken,uint _amount)public returns(uint){
+//         address _cToken = tokenForCtoken[_token];
+//         uint oneCtokenInunderlying = ICErc20(_cToken).exchangeRateCurrent()/(1*10^(18 + decimalsToken - 8));
+//         return _amount*oneCtokenInunderlying;
+//     }
+//     function getCTokenprice(address _cToken)public view returns(uint){
+//         return priceFeed.getUnderlyingPrice(_cToken);
+//     }
 
 }

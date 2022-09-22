@@ -77,4 +77,5 @@ interface ComptrollerInterfaces {
 
 interface PriceFeed {
   function getUnderlyingPrice(address cToken) external view returns (uint);
+  function assetPrices(address asset) external view returns (uint);
 }
