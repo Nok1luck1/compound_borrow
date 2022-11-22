@@ -54,7 +54,7 @@ interface ComptrollerInterfaces {
     );
 
   function enterMarkets(address[] calldata) external returns (uint[] memory);
-
+  function exitMarket(address[] calldata)external returns(uint[] memory);
   function getAccountLiquidity(address)
     external
     view

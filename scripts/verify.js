@@ -4,7 +4,7 @@ const { ethers } = require(`hardhat`);
 //const SkyMoney1 = '0x5932E2bfE271563c7700d1cA941829c4ccB62B43'
 const InterestRate = "0x9a7356a642941E55EaE8947D239D4D5bB537731d";
 
-const Compound_borrow = "0xFcCc5FABeAA6A0f79732dc0f97702E4e269d323f";
+const Compound_borrow = "0x93FaeCDC229E514549C97c4E5bF337C11687e675";
 const CTOKEN = "0xEf7999fF764e0De1b3137c14eB9444646c5a4AFF";
 //const SkyMoney5 = "0xdAc4eCf4913b0E4bEf53dfcf2927b1192bDa4117";
 

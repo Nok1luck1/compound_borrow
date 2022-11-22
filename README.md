@@ -11,3 +11,6 @@ GAS_REPORT=true npx hardhat test
 npx hardhat node
 npx hardhat run scripts/deploy.js
 ```
+mint with 1000 UNI tokens => 49,999.73230003 cUni token
+chechPrice c Token =>6030000000000000000
+
